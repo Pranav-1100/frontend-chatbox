@@ -1,16 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import styled from 'styled-components';
-import { Scrollbar } from 'react-scrollbars-custom';
+import styled, { keyframes } from 'styled-components';
+
+const bounce = keyframes`
+  0% { transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  4.7% { transform: matrix3d(0.45, 0, 0, 0, 0, 0.45, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  9.41% { transform: matrix3d(0.883, 0, 0, 0, 0, 0.883, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  14.11% { transform: matrix3d(1.141, 0, 0, 0, 0, 1.141, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  18.72% { transform: matrix3d(1.212, 0, 0, 0, 0, 1.212, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  24.32% { transform: matrix3d(1.151, 0, 0, 0, 0, 1.151, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  29.93% { transform: matrix3d(1.048, 0, 0, 0, 0, 1.048, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  35.54% { transform: matrix3d(0.979, 0, 0, 0, 0, 0.979, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  41.04% { transform: matrix3d(0.961, 0, 0, 0, 0, 0.961, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  52.15% { transform: matrix3d(0.991, 0, 0, 0, 0, 0.991, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  63.26% { transform: matrix3d(1.007, 0, 0, 0, 0, 1.007, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  85.49% { transform: matrix3d(0.999, 0, 0, 0, 0, 0.999, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
+  100% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); } 
+`;
+
+const thinkingAnimation = keyframes`
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+`;
 
 const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 600px;
+  width: 400px;
   height: 80vh;
   max-height: 600px;
-  background: rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #044f48, #2a7561);
   border-radius: 20px;
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
   position: absolute;
@@ -21,11 +41,50 @@ const ChatContainer = styled.div`
   overflow: hidden;
 `;
 
+const ChatHeader = styled.div`
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const UserName = styled.h2`
+  margin: 0;
+  font-size: 16px;
+`;
+
+const ChatTitle = styled.h3`
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
 const MessagesContent = styled.div`
   flex-grow: 1;
   color: rgba(255, 255, 255, 0.5);
-  overflow: hidden;
-  position: relative;
+  overflow-y: auto;
+  padding: 20px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  }
 `;
 
 const MessageBox = styled.div`
@@ -52,8 +111,8 @@ const MessageSubmit = styled.button`
   border: none;
   font-size: 14px;
   text-transform: uppercase;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 10px 20px;
+  border-radius: 5px;
   outline: none;
   transition: background 0.2s ease;
 
@@ -65,41 +124,50 @@ const MessageSubmit = styled.button`
 const Message = styled.div`
   display: flex;
   align-items: flex-end;
-  justify-content: ${({ isUser }) => (isUser ? 'flex-end' : 'flex-start')};
-  padding: 10px;
+  margin-bottom: 10px;
+  ${({ isUser }) => isUser && 'flex-direction: row-reverse;'}
 `;
 
 const MessageBubble = styled.div`
   max-width: 70%;
   padding: 10px;
   border-radius: 10px;
-  background: ${({ isUser }) => (isUser ? 'linear-gradient(120deg, #248a52, #257287)' : 'rgba(0, 0, 0, 0.3)')};
+  background: ${({ isUser }) => (isUser ? 'linear-gradient(120deg, #248A52, #257287)' : 'rgba(0, 0, 0, 0.3)')};
   color: ${({ isUser }) => (isUser ? '#fff' : 'rgba(255, 255, 255, 0.7)')};
   position: relative;
-  margin: ${({ isUser }) => (isUser ? '10px 10px 10px 0' : '10px 0 10px 10px')};
+  margin: ${({ isUser }) => (isUser ? '0 0 0 10px' : '0 10px 0 0')};
+  animation: ${bounce} 500ms linear both;
 `;
 
 const ProfileImage = styled.img`
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  margin: ${({ isUser }) => (isUser ? '0 10px 0 0' : '0 0 0 10px')};
+  margin: ${({ isUser }) => (isUser ? '0 0 0 10px' : '0 10px 0 0')};
 `;
 
-const DetailsForm = styled.form`
+const ThinkingDots = styled.div`
   display: flex;
-  flex-direction: column;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  height: 30px;
 `;
 
-const Input = styled.input`
-  margin-bottom: 10px;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
-  outline: none;
+const Dot = styled.div`
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 50%;
+  margin: 0 3px;
+  animation: ${thinkingAnimation} 1.4s infinite ease-in-out both;
+
+  &:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  &:nth-child(2) {
+    animation-delay: -0.16s;
+  }
 `;
 
 const Chatbot = () => {
@@ -107,30 +175,34 @@ const Chatbot = () => {
   const [input, setInput] = useState('');
   const [isAskingForDetails, setIsAskingForDetails] = useState(false);
   const [bookingDetails, setBookingDetails] = useState({ fullName: '', email: '', roomId: null, nights: 1 });
+  const [isThinking, setIsThinking] = useState(false);
 
-  const scrollbarRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     setTimeout(() => {
-      addBotMessage("Hi there, how can I help?");
+      addBotMessage("Hi there, how can I help you with your hotel booking?");
     }, 1000);
   }, []);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const addMessage = (content, role = 'user') => {
     setMessages((prevMessages) => [...prevMessages, { role, content }]);
-    updateScrollbar();
   };
 
   const addBotMessage = (content) => {
-    addMessage(content, 'assistant');
-  };
-
-  const updateScrollbar = () => {
+    setIsThinking(true);
     setTimeout(() => {
-      if (scrollbarRef.current) {
-        scrollbarRef.current.scrollToBottom();
-      }
-    }, 100);
+      addMessage(content, 'assistant');
+      setIsThinking(false);
+    }, 1000 + Math.random() * 1000);
   };
 
   const formatMessageContent = (content) => {
@@ -154,8 +226,9 @@ const Chatbot = () => {
   const sendMessage = async () => {
     if (input.trim() === '') return;
 
-    const newMessage = { role: 'user', content: input };
-    setMessages([...messages, newMessage]);
+    addMessage(input);
+    setInput('');
+    setIsThinking(true);
 
     try {
       const response = await axios.post('http://localhost:3000/api/chat', {
@@ -163,19 +236,17 @@ const Chatbot = () => {
         message: input,
       });
 
-      const botMessage = { role: 'assistant', content: response.data.response };
-      setMessages([...messages, newMessage, botMessage]);
+      addBotMessage(response.data.response);
 
       if (response.data.askForDetails) {
         setIsAskingForDetails(true);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage = { role: 'assistant', content: 'Sorry, something went wrong. Please try again later.' };
-      setMessages([...messages, newMessage, errorMessage]);
+      addBotMessage('Sorry, something went wrong. Please try again later.');
+    } finally {
+      setIsThinking(false);
     }
-
-    setInput('');
   };
 
   const handleBookingDetailsSubmit = async (event) => {
@@ -183,6 +254,7 @@ const Chatbot = () => {
     const { fullName, email } = bookingDetails;
 
     if (fullName && email) {
+      setIsThinking(true);
       try {
         const response = await axios.post('http://localhost:3000/api/chat', {
           userId: '123', // replace with actual user ID
@@ -193,13 +265,13 @@ const Chatbot = () => {
           nights: bookingDetails.nights,
         });
 
-        const botMessage = { role: 'assistant', content: response.data.response };
-        setMessages([...messages, botMessage]);
+        addBotMessage(response.data.response);
         setIsAskingForDetails(false);
       } catch (error) {
         console.error('Error sending booking details:', error);
-        const errorMessage = { role: 'assistant', content: 'Sorry, something went wrong. Please try again later.' };
-        setMessages([...messages, errorMessage]);
+        addBotMessage('Sorry, something went wrong. Please try again later.');
+      } finally {
+        setIsThinking(false);
       }
     } else {
       alert('Please fill in all the details');
@@ -208,40 +280,60 @@ const Chatbot = () => {
 
   return (
     <ChatContainer>
+      <ChatHeader>
+        <UserName>John Doe</UserName>
+        <ChatTitle>Hotel Booking Chatbot</ChatTitle>
+      </ChatHeader>
       <MessagesContent>
-        <Scrollbar ref={scrollbarRef} style={{ width: '100%', height: '100%' }}>
-          <div>
-            {messages.map((msg, index) => (
-              <Message key={index} isUser={msg.role === 'user'}>
-                {!msg.isUser && <ProfileImage isUser={msg.role === 'user'} src={msg.role === 'user' ? "https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/images.jpg" : "https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/download.jpg" } />}
-                <MessageBubble isUser={msg.role === 'user'}>
-                  {msg.role === 'user' ? 'User: ' : 'Bot: '}
-                  {formatMessageContent(msg.content)}
-                </MessageBubble>
-                {msg.isUser && <ProfileImage isUser={msg.role === 'user'} src={msg.role === 'user' ? "https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/images.jpg" : "https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/download.jpg"} />}
-              </Message>
-            ))}
-          </div>
-        </Scrollbar>
+        {messages.map((msg, index) => (
+          <Message key={index} isUser={msg.role === 'user'}>
+            {msg.role !== 'user' && (
+              <ProfileImage
+                isUser={false}
+                src="https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/download.jpg"
+                alt="Bot"
+              />
+            )}
+            
+            {msg.role === 'user' && (
+              <ProfileImage
+                isUser={true}
+                src="https://raw.githubusercontent.com/Pranav-1100/Pranav-1100/main/assets/images.jpg"
+                alt="User"
+              />
+            )}
+            <MessageBubble isUser={msg.role === 'user'}>
+              {formatMessageContent(msg.content)}
+            </MessageBubble>
+          </Message>
+        ))}
+        {isThinking && (
+          <ThinkingDots>
+            <Dot />
+            <Dot />
+            <Dot />
+          </ThinkingDots>
+        )}
+        <div ref={messagesEndRef} />
       </MessagesContent>
       {isAskingForDetails ? (
-        <DetailsForm onSubmit={handleBookingDetailsSubmit}>
-          <Input
+        <MessageBox>
+          <MessageInput
             type="text"
             placeholder="Full Name"
             value={bookingDetails.fullName}
             onChange={(e) => setBookingDetails({ ...bookingDetails, fullName: e.target.value })}
             required
           />
-          <Input
+          <MessageInput
             type="email"
             placeholder="Email"
             value={bookingDetails.email}
             onChange={(e) => setBookingDetails({ ...bookingDetails, email: e.target.value })}
             required
           />
-          <MessageSubmit type="submit">Submit</MessageSubmit>
-        </DetailsForm>
+          <MessageSubmit onClick={handleBookingDetailsSubmit}>Submit</MessageSubmit>
+        </MessageBox>
       ) : (
         <MessageBox>
           <MessageInput
@@ -249,6 +341,7 @@ const Chatbot = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder="Type your message..."
           />
           <MessageSubmit onClick={sendMessage}>Send</MessageSubmit>
         </MessageBox>
