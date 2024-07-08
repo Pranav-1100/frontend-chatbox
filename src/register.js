@@ -1,59 +1,91 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import authService from './authService';
 
-const Register = ({ setAuth }) => {
+const RegisterContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #044f48, #2a7561);
+`;
+
+const RegisterForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+`;
+
+const Input = styled.input`
+  margin: 10px 0;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+`;
+
+const Button = styled.button`
+  margin: 10px 0;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #248a52;
+  color: white;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #1d7745;
+  }
+`;
+
+const Register = ({ onRegister }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const history = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/register', {
-        username,
-        email,
-        password,
-      });
-      localStorage.setItem('token', response.data.token);
-      setAuth(true);
-      history.push('/');
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+      const userData = await authService.register(username, email, password);
+      localStorage.setItem('user', JSON.stringify({ username: userData.username }));
+      onRegister();
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('Registration failed. Please try again.');
     }
   };
 
   return (
-    <div>
-      <h2>Register</h2>
-      {error && <p>{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <input
+    <RegisterContainer>
+      <RegisterForm onSubmit={handleSubmit}>
+        <Input
           type="text"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
           required
         />
-        <input
+        <Input
           type="email"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
           required
         />
-        <input
+        <Input
           type="password"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
           required
         />
-        <button type="submit">Register</button>
-      </form>
-    </div>
+        <Button type="submit">Register</Button>
+      </RegisterForm>
+    </RegisterContainer>
   );
 };
 

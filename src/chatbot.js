@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
+import authService from './authService';
 
 const bounce = keyframes`
   0% { transform: matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); }
@@ -189,6 +190,21 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = authService.getToken();
+      const username = authService.getUsername();
+      console.log('Auth check - Token:', token, 'Username:', username);
+      console.log('Local Storage - user:', localStorage.getItem('user'));
+      console.log('Local Storage - token:', localStorage.getItem('token'));
+      if (!token || !username) {
+        console.log('User not authenticated, redirecting to login');
+        // Implement your redirect logic here
+      }
+    };
+    checkAuth();
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -225,30 +241,59 @@ const Chatbot = () => {
 
   const sendMessage = async () => {
     if (input.trim() === '') return;
-
+  
+    const username = authService.getUsername();
+    const token = authService.getToken();
+    console.log('Attempting to send message. Username:', username, 'Token exists:', !!token);
+  
+    if (!username || !token) {
+      console.log('User not authenticated, redirecting to login');
+      // Implement your redirect logic here, e.g.:
+      // history.push('/login');
+      addBotMessage('Please log in to continue.');
+      return;
+    }
+  
     addMessage(input);
     setInput('');
     setIsThinking(true);
-
+  
     try {
+      console.log('Sending message - Token:', token.substring(0, 10) + '...', 'Username:', username);
+  
       const response = await axios.post('http://localhost:3000/api/chat', {
-        userId: '123', // replace with actual user ID
+        userId: username,
         message: input,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
-
-      addBotMessage(response.data.response);
-
-      if (response.data.askForDetails) {
-        setIsAskingForDetails(true);
+  
+      console.log('Message sent successfully. Response:', response.data);
+  
+      if (response.data && response.data.response) {
+        addBotMessage(response.data.response);
+      } else {
+        throw new Error('Invalid response from server');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      addBotMessage('Sorry, something went wrong. Please try again later.');
+      console.error('Error details:', error.response ? error.response.data : 'No response data');
+      
+      if (error.response && error.response.status === 401) {
+        console.log('Authentication failed. Redirecting to login.');
+        // Implement your redirect logic here, e.g.:
+        // history.push('/login');
+        addBotMessage('Your session has expired. Please log in again.');
+      } else {
+        addBotMessage('Sorry, something went wrong. Please try again later.');
+      }
     } finally {
       setIsThinking(false);
     }
   };
-
+  
   const handleBookingDetailsSubmit = async (event) => {
     event.preventDefault();
     const { fullName, email } = bookingDetails;
@@ -256,20 +301,31 @@ const Chatbot = () => {
     if (fullName && email) {
       setIsThinking(true);
       try {
+        const token = authService.getToken();
+        const username = authService.getUsername();
+
         const response = await axios.post('http://localhost:3000/api/chat', {
-          userId: '123', // replace with actual user ID
+          userId: username,
           message: `Booking details: ${fullName}, ${email}`,
           roomId: bookingDetails.roomId,
           fullName: bookingDetails.fullName,
           email: bookingDetails.email,
           nights: bookingDetails.nights,
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
 
-        addBotMessage(response.data.response);
-        setIsAskingForDetails(false);
+        if (response.data && response.data.response) {
+          addBotMessage(response.data.response);
+          setIsAskingForDetails(false);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (error) {
         console.error('Error sending booking details:', error);
-        addBotMessage('Sorry, something went wrong. Please try again later.');
+        addBotMessage('Sorry, something went wrong. Please try again .');
       } finally {
         setIsThinking(false);
       }
@@ -281,7 +337,7 @@ const Chatbot = () => {
   return (
     <ChatContainer>
       <ChatHeader>
-        <UserName>John Doe</UserName>
+        <UserName>User Chat</UserName>
         <ChatTitle>Hotel Booking Chatbot</ChatTitle>
       </ChatHeader>
       <MessagesContent>
